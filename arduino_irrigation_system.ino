@@ -1,3 +1,11 @@
+/*
+ * Plant irrigation system using an
+ * Atmega328p Arduino Pro Mini board
+ * 
+ *  GameInstance.com
+ *  2017
+ */
+
 #include <LowPower.h>
 #include <Wire.h> 
 #include "RTClib.h"
