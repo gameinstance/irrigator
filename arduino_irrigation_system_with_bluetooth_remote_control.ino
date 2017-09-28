@@ -1,3 +1,11 @@
+/*
+ *  Arduino Irrigation System with 
+ *  Bluetooth remote controll.
+ * 
+ *  GameInstance.com
+ *  2017
+ */
+
 #include <EEPROM.h>
 #include <LowPower.h>
 #include <Wire.h>
