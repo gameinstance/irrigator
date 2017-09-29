@@ -1,6 +1,6 @@
 /*
  *  Arduino Irrigation System with 
- *  Bluetooth remote controll.
+ *  Bluetooth remote control.
  * 
  *  GameInstance.com
  *  2017
