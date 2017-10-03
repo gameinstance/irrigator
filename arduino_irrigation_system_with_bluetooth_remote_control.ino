@@ -609,10 +609,10 @@ class MySerialCommand : public SerialCommand {
       Serial.println("Scheduled Off-Grid Irrigation System");
 /*
       Serial.println("Commands:");
-      Serial.println("a? - help");
-      Serial.println("ad - dump config and machine state");
-      Serial.println("ai:X:Y:A:B - Sets the X=period, Y=start, A=alternating, B=small only");
-      Serial.println("ah:A:B:C:D - Sets the A=startHour, B=startMinute, C=endHour, D=endMinute");
+      Serial.println("? - help");
+      Serial.println("d - dump config and machine state");
+      Serial.println("i:X:Y:A:B - Sets the X=period, Y=start, A=alternating, B=small only");
+      Serial.println("h:A:B:C:D - Sets the A=startHour, B=startMinute, C=endHour, D=endMinute");
 */
     };
     /// parses the command data
