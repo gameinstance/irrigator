@@ -3,7 +3,7 @@
  *  Bluetooth remote control.
  * 
  *  GameInstance.com
- *  2017
+ *  2017-2018
  */
 
 #include <EEPROM.h>
