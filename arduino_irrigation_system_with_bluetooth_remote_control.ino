@@ -9,6 +9,7 @@
 #include <EEPROM.h>
 #include <LowPower.h>
 #include <Wire.h>
+#include <SerialCommand.h>
 #include "RTClib.h"
 
 /// self test
@@ -192,7 +193,7 @@ class MyConfig {
       value = EEPROM.read(0);
       if ((value < 1) || (value > 10)) {
         // invalid value
-//        Serial.println("Failed on irrigation period. ");
+//        Serial.println("11");
         return false;
       }
       irrigationPeriodDays = value;
@@ -201,7 +202,7 @@ class MyConfig {
       value = EEPROM.read(1);
       if (value >= irrigationPeriodDays) {
         // invalid value
-//        Serial.println("Failed on irrigation day. ");
+//        Serial.println("12");
         return false;
       }
       irrigationDay = value;
@@ -222,7 +223,7 @@ class MyConfig {
       value = EEPROM.read(4);
       if (!ValidHour(value)) {
         // invalid hour
-//        Serial.println("Failed on irrigation begin hour. ");
+//        Serial.println("21");
         return false;
       }
       beginHour = value;
@@ -231,7 +232,7 @@ class MyConfig {
       value = EEPROM.read(5);
       if (!ValidMinute(value)) {
         // invalid minute
-//        Serial.println("Failed on irrigation begin minute. ");
+//        Serial.println("22");
         return false;
       }
       beginMinute = value;
@@ -240,7 +241,7 @@ class MyConfig {
       value = EEPROM.read(6);
       if (!ValidHour(value)) {
         // invalid hour
-//        Serial.println("Failed on irrigation end hour. ");
+//        Serial.println("23");
         return false;
       }
       endHour = value;
@@ -249,7 +250,7 @@ class MyConfig {
       value = EEPROM.read(7);
       if (!ValidMinute(value)) {
         // invalid minute
-//        Serial.println("Failed on irrigation end minute. ");
+//        Serial.println("24");
         return false;
       }
       endMinute = value;
@@ -264,7 +265,7 @@ class MyConfig {
     /// sets the defaults
     void Default() {
       // 
-      Serial.println("Applying default config.");
+      Serial.println("Applying defaults.");
       irrigationPeriodDays = 2;
       irrigationDay = 0;
       cascadeAlternation = false;
@@ -275,20 +276,20 @@ class MyConfig {
       endMinute = 55;
     };
     /// sets the period data
-    void SetPeriod(byte var[4]) {
-      //
-      irrigationPeriodDays = var[0];
-      irrigationDay = var[1];
-      cascadeAlternation = (bool) var[2];
-      smallCascadeOnly = (bool) var[3];
+    void SetPeriod(byte var[5]) {
+      // the first index contains the instruction
+      irrigationPeriodDays = var[1];
+      irrigationDay = var[2];
+      cascadeAlternation = (bool) var[3];
+      smallCascadeOnly = (bool) var[4];
     };
     /// sets the hours
-    void SetHour(byte var[4]) {
-      //
-      beginHour = var[0];
-      beginMinute = var[1];
-      endHour = var[2];
-      endMinute = var[3];
+    void SetHour(byte var[5]) {
+      // the first index contains the instruction
+      beginHour = var[1];
+      beginMinute = var[2];
+      endHour = var[3];
+      endMinute = var[4];
     };
     /// saves the period
     bool SavePeriod() {
@@ -314,129 +315,129 @@ class MyConfig {
     /// dumps the config
     void Dump() {
       // 
-      Serial.print("Irrigation period (days): ");
+      Serial.print("Period (days):");
       Serial.println(irrigationPeriodDays);
-      Serial.print("Irrigation day: ");
+      Serial.print("Day:");
       Serial.println(irrigationDay);
-      Serial.print("Between ");
+      Serial.print("Hours ");
       Serial.print(beginHour, DEC);
       Serial.print(":");
       Serial.print(beginMinute, DEC);
-      Serial.print(" and ");
+      Serial.print("-");
       Serial.print(endHour, DEC);
       Serial.print(":");
       Serial.print(endMinute, DEC);
       Serial.println(". ");
-      Serial.print("Irrigates today: ");
+      Serial.print("Today:");
       if ((today() % irrigationPeriodDays) == irrigationDay) {
         // 
-        Serial.println("Yes");
+        Serial.println("Y");
       } else {
         // 
-        Serial.println("No");
+        Serial.println("N");
       }
 
-      Serial.print("Cascade alternation: ");
-      Serial.println(cascadeAlternation ? "Yes" : "No");
-      Serial.print("Small cascade only: ");
-      Serial.println(smallCascadeOnly ? "Yes" : "No");
+      Serial.print("Altern:");
+      Serial.println(cascadeAlternation ? "Y" : "N");
+      Serial.print("Small casc only:");
+      Serial.println(smallCascadeOnly ? "Y" : "N");
     };
     /// prints the human readable config to serial port
     void Display() {
       // 
-      Serial.print("Irigates once every ");
+      Serial.print("Irigates every ");
       Serial.print(irrigationPeriodDays, DEC);
       Serial.print(" days, at day ");
       Serial.println(irrigationDay, DEC);
       Serial.print("today: ");
       if ((today() % irrigationPeriodDays) == irrigationDay) {
         // 
-        Serial.println("yes, ");
+        Serial.println("Y, ");
       } else {
         // 
-        Serial.println("no, ");
+        Serial.println("N, ");
       }
       Serial.print("today + 1: ");
       if (((today() + 1) % irrigationPeriodDays) == irrigationDay) {
         // 
-        Serial.println("yes, ");
+        Serial.println("Y, ");
       } else {
         // 
-        Serial.println("no, ");
+        Serial.println("N, ");
       }
       Serial.print("today + 2: ");
       if (((today() + 2) % irrigationPeriodDays) == irrigationDay) {
         // 
-        Serial.println("yes, ");
+        Serial.println("Y, ");
       } else {
         // 
-        Serial.println("no, ");
+        Serial.println("N, ");
       }
       Serial.print("today + 3: ");
       if (((today() + 3) % irrigationPeriodDays) == irrigationDay) {
         // 
-        Serial.println("yes,");
+        Serial.println("Y,");
       } else {
         // 
-        Serial.println("no,");
+        Serial.println("N,");
       }
     
       if (cascadeAlternation) {
         // 
-        Serial.print("alternating the cascades - today: ");
+        Serial.print("alternating cascs - today: ");
         if (((int)(today() / irrigationPeriodDays) % 2) == 0) {
           // 
-          Serial.println("the small cascade, ");
+          Serial.println("small casc, ");
         } else {
           // 
-          Serial.println("the big cascade, ");
+          Serial.println("big casc, ");
         }
         Serial.print("today + 1: ");
         if (((int)((today() + 1) / irrigationPeriodDays) % 2) == 0) {
           // 
-          Serial.println("the small cascade, ");
+          Serial.println("small casc, ");
         } else {
           // 
-          Serial.println("the big cascade, ");
+          Serial.println("big casc, ");
         }
         Serial.print("today + 2: ");
         if (((int)((today() + 2) / irrigationPeriodDays) % 2) == 0) {
           // 
-          Serial.println("the small cascade, ");
+          Serial.println("small casc, ");
         } else {
           // 
-          Serial.println("the big cascade, ");
+          Serial.println("big casc, ");
         }
         Serial.print("today + 3: ");
         if (((int)((today() + 3) / irrigationPeriodDays) % 2) == 0) {
           // 
-          Serial.println("the small cascade.");
+          Serial.println("small casc.");
         } else {
           // 
-          Serial.println("the big cascade.");
+          Serial.println("big casc.");
         }
       } else {
         // 
         if (smallCascadeOnly) {
           // 
-          Serial.println(" just the small cascade,");
+          Serial.println(" just the small casc,");
         } else {
           //
-          Serial.println(" just the big cascade,");
+          Serial.println(" just the big casc,");
         }
       }
       Serial.print(" between ");
       Serial.print(beginHour, DEC);
       Serial.print(":");
       Serial.print(beginMinute, DEC);
-      Serial.print(" and ");
+      Serial.print("-");
       Serial.print(endHour, DEC);
       Serial.print(":");
       Serial.print(endMinute, DEC);
       Serial.println(". ");
-      Serial.print("Checking the tank every ");
+      Serial.print("Checking tank every ");
       Serial.print(WARNING_TANK_LEVEL_PROBING_INTERVAL, DEC);
-      Serial.print(" seconds. Today is day #: ");
+      Serial.print(" seconds. Today is #");
       Serial.print(today(), DEC);  
       Serial.println(".");
     }
@@ -473,83 +474,6 @@ class MyConfig {
     };
 };
 
-/*
- * The generic serial command class.
- */
-class SerialCommand {
-
-  public:
-  
-    /// default c-tor
-    SerialCommand() {
-      // 
-    };
-    /// destructor
-    virtual ~SerialCommand() {
-      // 
-    };
-
-    /// initializes the serial port with the baud rate
-    void Init(int baudRate) {
-      // 
-      Serial.begin(baudRate);
-    };
-    /// reads one char from the serial port
-    bool Read() {
-      // 
-      if (!Serial.available()) {
-        // no data available
-        return false;
-      }
-      // data available
-      charIn = Serial.read();
-      data[index] = charIn;
-      index ++;
-      data[index] = '\0';
-      if (charIn == '\n') {
-        // new command
-        command = true;
-      }
-      return true;
-    };
-    /// executes the command
-    bool Execute() {
-      // 
-      if (!command) {
-        // nothing to execute
-        return false;
-      }
-      // a command was issued
-      command = false;
-      bool res = Run();
-      Reset();
-      return res;
-    };
-
-
-  protected:
-
-    /// runs the command
-    virtual bool Run() = 0;
-    /// resets the read chars
-    void Reset() {
-      // 
-      index = 0;
-    };
-    
-    /// the command string;
-    char data[64];
-    /// inner command index
-    byte index;
-
-
-  private:
-    
-    /// maneuver char
-    char charIn;
-    /// command detected
-    bool command;
-};
 
 /*
  * The app specific serial command class.
@@ -600,7 +524,7 @@ class MySerialCommand : public SerialCommand {
           return Dump();
       }
       // unknown command
-      Serial.println("Unknown command!");
+      Serial.println("Unkn cmd!");
       return false;
     };
     /// identifies the app
@@ -609,38 +533,39 @@ class MySerialCommand : public SerialCommand {
       Serial.println("Scheduled Off-Grid Irrigation System");
 /*
       Serial.println("Commands:");
-      Serial.println("? - help");
-      Serial.println("d - dump config and machine state");
-      Serial.println("i:X:Y:A:B - Sets the X=period, Y=start, A=alternating, B=small only");
-      Serial.println("h:A:B:C:D - Sets the A=startHour, B=startMinute, C=endHour, D=endMinute");
 */
+      Serial.println("? - help");
+      Serial.println("d - dump");
+      Serial.println("i:X:Y:A:B - X=period, Y=start, A=altern, B=small only");
+      Serial.println("h:A:B:C:D - A=startHr, B=startMin, C=endHr, D=endMin");
     };
     /// parses the command data
     bool Parse() {
       // 
 //      Serial.print("Command: ");
 //      Serial.println(data);
-      char s[64];
+      char buff[16];
       byte j = 0, k = 0;
       for (byte i = 1; data[i] != '\0'; i ++) {
         // 
         if (data[i] == ':') {
           // delimitor
-          s[j] = '\0';
-          var[k] = atoi(s);
+          buff[j] = '\0';
+          var[k] = atoi(buff);
           j = 0;
           k ++;
         } else {
           // acquire data
-          s[j ++] = data[i];
+          buff[j ++] = data[i];
         }
       }
-      s[j] = '\0';
-      var[k] = atoi(s);
+      buff[j] = '\0';
+      var[k] = atoi(buff);
     };
     /// stores the period data
     void StorePeriod() {
       //
+//      for (byte i = 0; i < 16; i ++)  Serial.println(var[i]);
       pConfig->SetPeriod(var);
       pConfig->SavePeriod();
       state = 0;
@@ -656,26 +581,26 @@ class MySerialCommand : public SerialCommand {
     bool Dump() {
       // 
       trace("");
-      Serial.println("--- FSM DUMP ---");
-      Serial.print("FSM state: ");
+      Serial.println("-FSM DUMP-");
+      Serial.print("State:");
       Serial.println(state);
-      Serial.print("Debug mode: ");
-      Serial.println(DEBUG ? "Yes" : "No");
-      Serial.print("Today is day #: ");
+      Serial.print("DBG:");
+      Serial.println(DEBUG ? "Y" : "N");
+      Serial.print("Today is #");
       Serial.print(today(), DEC);  
       Serial.println(".");
       pConfig->Dump();
-      Serial.print("Tank empty: ");
-      Serial.println(tankEmpty() ? "Yes" : "No");
-      Serial.print("Big cascade full: ");
-      Serial.println(bigCascadeFull() ? "Yes" : "No");
-      Serial.print("Small cascade full: ");
-      Serial.println(smallCascadeFull() ? "Yes" : "No");
-      Serial.print("Bluetooth power: ");
-      Serial.println(digitalRead(BLUETOOTH_POWER_PORT) ? "No" : "Yes");
-      Serial.print("Bluetooth connection: ");
-      Serial.println(digitalRead(BLUETOOTH_CONNECTION_PORT) ? "Yes" : "No");
-      Serial.println("--- END OF FSM DUMP ---");
+      Serial.print("Empty:");
+      Serial.println(tankEmpty() ? "Y" : "N");
+      Serial.print("Big casc full:");
+      Serial.println(bigCascadeFull() ? "Y" : "N");
+      Serial.print("Small casc full:");
+      Serial.println(smallCascadeFull() ? "Y" : "N");
+      Serial.print("BT power:");
+      Serial.println(digitalRead(BLUETOOTH_POWER_PORT) ? "N" : "Y");
+      Serial.print("BT conn:");
+      Serial.println(digitalRead(BLUETOOTH_CONNECTION_PORT) ? "Y" : "N");
+      Serial.println("-EO DUMP-");
       return true;
     };
 
@@ -778,7 +703,7 @@ bool execute() {
       conf.Default();
     }
     conf.Display();
-    trace("System initialization (in 10 seconds).");
+    trace("Sys init in 10 s.");
     state = 1000;
   }
   if (state == 1000) {
@@ -788,7 +713,7 @@ bool execute() {
   }
   if (state == 2000) {
     // 
-    trace("System start.");
+    trace("Sys start.");
     if (SELF_TEST) {
       // with self-testing
       state = 10;
@@ -800,7 +725,7 @@ bool execute() {
   if (state == 10) {
     // self-test: empty tank LED on
     trace("Test: Start");
-    trace("Test: Signaling LED");
+    trace("Test: LED");
     digitalWrite(SIGNALING_LED_PORT, HIGH);
     state = 1010;
   }
@@ -841,7 +766,7 @@ bool execute() {
   }
   if (state == 14) {
     // self-test: pump motor on
-    trace("Test: Pump motor");
+    trace("Test: Pump");
     digitalWrite(PUMP_MOTOR_PORT, HIGH);
     state = 1014;
   }
@@ -879,22 +804,22 @@ bool execute() {
       int cnt = 0;
       if (smallCascadeFull()) {
         // 
-        trace("Test: The small cascade is full.");
+        trace("Test: Small casc full.");
         cnt ++;
       }
       if (bigCascadeFull()) {
         //
-        trace("Test: The big cascade is full.");
+        trace("Test: Big casc full.");
         cnt ++;
       }
       if (tankEmpty()) {
         //
-        trace("Test: The water tank is empty.");
+        trace("Test: Water tank empty.");
         cnt ++;
       }
       if (cnt == 0) {
         // 
-        trace("Test: All switches are open.");
+        trace("Test: All switches open.");
       }
       state = 2017;
     }
@@ -920,7 +845,7 @@ bool execute() {
     // tests
     if (tankEmpty()) {
       // 
-      trace("The water tank is empty!");
+      trace("Water tank empty!");
       state = 100;
     } else {
       // the water tank is not empty
@@ -936,7 +861,7 @@ bool execute() {
   }
   if (state == 2) {
     // 
-    trace("Starting the pump motor.");
+    trace("Starting pump.");
     digitalWrite(PUMP_MOTOR_PORT, HIGH);
     state = 3;
   }
@@ -950,12 +875,12 @@ bool execute() {
     }
     else if (cascadeFull()) {
       // 
-      trace("The water cascade filled-up.");
+      trace("Water casc filled-up.");
       state = 4;
     }
     else if (!irrigationInterval()) {
       // 
-      trace("The irrigation time is up.");
+      trace("Irrigation time is up.");
       state = 4;
     }
     else {
@@ -965,7 +890,7 @@ bool execute() {
   }
   if (state == 4) {
     // 
-    trace("Stopping the pump motor.");
+    trace("Stopping pump.");
     digitalWrite(PUMP_MOTOR_PORT, LOW);
     state = 5;
   }
@@ -973,7 +898,7 @@ bool execute() {
     // wating for the irrigation time to pass
     if (!irrigationInterval()) {
       // 
-      trace("The irrigation time has passed.");
+      trace("Irrigation time has passed.");
       state = 1;
     }
   }
@@ -996,7 +921,7 @@ bool execute() {
       } else {
         // 
         digitalWrite(SIGNALING_LED_PORT, LOW);
-        trace("The tank is no longer empty.");
+        trace("Tank no longer empty.");
         state = 1;
       }
     }
