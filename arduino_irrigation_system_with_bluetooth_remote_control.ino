@@ -1,11 +1,3 @@
-/*
- *  Arduino Irrigation System with 
- *  Bluetooth remote control.
- * 
- *  GameInstance.com
- *  2017-2018
- */
-
 #include <EEPROM.h>
 #include <LowPower.h>
 #include <Wire.h>
@@ -188,24 +180,16 @@ class MyConfig {
     /// loads interval data
     bool LoadInterval() {
       // 
-      byte value;
-      // loading the irrigation period
-      value = EEPROM.read(0);
-      if ((value < 1) || (value > 10)) {
-        // invalid value
+      byte value0 = EEPROM.read(0);
+      byte value1 = EEPROM.read(1);
+      if (!ValidPeriodAndDay(value0, value1)) {
+        // 
 //        Serial.println("11");
         return false;
       }
-      irrigationPeriodDays = value;
-      
-      // loading the irrigation day
-      value = EEPROM.read(1);
-      if (value >= irrigationPeriodDays) {
-        // invalid value
-//        Serial.println("12");
-        return false;
-      }
-      irrigationDay = value;
+      // loading the irrigation period and day
+      irrigationPeriodDays = value0;
+      irrigationDay = value1;
       
       // loading the cascade alternation flag
       cascadeAlternation = (bool) EEPROM.read(2);
@@ -276,20 +260,51 @@ class MyConfig {
       endMinute = 55;
     };
     /// sets the period data
-    void SetPeriod(byte var[5]) {
+    bool SetPeriod(byte var[5]) {
       // the first index contains the instruction
+      if (!ValidPeriodAndDay(var[1], var[2])) {
+        // 
+        return false;
+      }
+      //
       irrigationPeriodDays = var[1];
       irrigationDay = var[2];
       cascadeAlternation = (bool) var[3];
       smallCascadeOnly = (bool) var[4];
+      return true;
     };
     /// sets the hours
-    void SetHour(byte var[5]) {
+    bool SetHour(byte var[5]) {
       // the first index contains the instruction
+      if (!ValidHour(var[1])
+        || !ValidHour(var[3])
+        || !ValidMinute(var[2])
+        || !ValidMinute(var[4])) {
+        // invalid times
+        Serial.println(1);
+        return false;
+      }
+      // 
+      if ((var[1] == 0)
+        && (var[2] == 0)
+        && (var[3] == 0)
+        && (var[4] == 0)) {
+        // all data zero: rather ill-formed command than intentionate
+        Serial.println(2);
+        return false;
+      }
+      //
+      if ((int) (var[1] * 60 + var[2]) > (int)(var[3]) * 60 + var[4]) {
+        // incoherent times
+        Serial.println(3);
+        return false;
+      }
+      //
       beginHour = var[1];
       beginMinute = var[2];
       endHour = var[3];
       endMinute = var[4];
+      return true;
     };
     /// saves the period
     bool SavePeriod() {
@@ -463,15 +478,20 @@ class MyConfig {
   private:
 
     /// validates hour
-    bool ValidHour(int value) {
+    bool ValidHour(byte value) {
       //
       return ((value >= 0) && (value <= 23));
-    };
+    }
     /// validates minute
-    bool ValidMinute(int value) {
+    bool ValidMinute(byte value) {
       //
       return ((value >= 0) && (value <= 59));
-    };
+    }
+    /// validates period and day
+    bool ValidPeriodAndDay(byte period, byte days) {
+      //
+      return ((period >= 1) && (period <= 10) && (days < period));
+    }
 };
 
 
@@ -486,11 +506,11 @@ class MySerialCommand : public SerialCommand {
     MySerialCommand() : SerialCommand() {
       // 
       pConfig = 0;
-    };
+    }
     /// destructor
     virtual ~MySerialCommand() {
       // 
-    };
+    }
 
     /// sets the config object pointer
     void SetConf(MyConfig* pC) {
@@ -519,6 +539,10 @@ class MySerialCommand : public SerialCommand {
           Parse();
           StoreHour();
           return true;
+        case 't':
+          // performs self-test
+          SelfTest();
+          return true;
         case 'd':
           // dump the FSM state
           return Dump();
@@ -526,7 +550,7 @@ class MySerialCommand : public SerialCommand {
       // unknown command
       Serial.println("Unkn cmd!");
       return false;
-    };
+    }
     /// identifies the app
     void Identify() {
       // 
@@ -536,7 +560,8 @@ class MySerialCommand : public SerialCommand {
 */
       Serial.println("? - help");
       Serial.println("d - dump");
-      Serial.println("i:X:Y:A:B - X=period, Y=start, A=altern, B=small only");
+      Serial.println("t - test");
+      Serial.println("i:X:Y:A:B - X=period, Y=start, A=altern, B=onlySmall");
       Serial.println("h:A:B:C:D - A=startHr, B=startMin, C=endHr, D=endMin");
     };
     /// parses the command data
@@ -544,9 +569,9 @@ class MySerialCommand : public SerialCommand {
       // 
 //      Serial.print("Command: ");
 //      Serial.println(data);
-      char buff[16];
+      char buff[16] = {0};
       byte j = 0, k = 0;
-      for (byte i = 1; data[i] != '\0'; i ++) {
+      for (byte i = 1; /*data[i] != '\0'*/ i < index; i ++) {
         // 
         if (data[i] == ':') {
           // delimitor
@@ -561,22 +586,32 @@ class MySerialCommand : public SerialCommand {
       }
       buff[j] = '\0';
       var[k] = atoi(buff);
-    };
+    }
     /// stores the period data
     void StorePeriod() {
       //
-//      for (byte i = 0; i < 16; i ++)  Serial.println(var[i]);
-      pConfig->SetPeriod(var);
+      if (!pConfig->SetPeriod(var)) {
+        // 
+        return;
+      }
       pConfig->SavePeriod();
-      state = 0;
-    };
+      state = 200;
+    }
     /// stores the hours
     void StoreHour() {
       //
-      pConfig->SetHour(var);
+      if (!pConfig->SetHour(var)) {
+        //
+        return;
+      }
       pConfig->SaveHour();
-      state = 0;
-    };
+      state = 200;
+    }
+    /// self test
+    void SelfTest() {
+      //
+      state = 10;
+    }
     /// dumps the FSM state
     bool Dump() {
       // 
@@ -602,7 +637,7 @@ class MySerialCommand : public SerialCommand {
       Serial.println(digitalRead(BLUETOOTH_CONNECTION_PORT) ? "Y" : "N");
       Serial.println("-EO DUMP-");
       return true;
-    };
+    }
 
     /// a sixteen bytes config
     byte var[16];
@@ -703,12 +738,23 @@ bool execute() {
       conf.Default();
     }
     conf.Display();
-    trace("Sys init in 10 s.");
+    trace("Sys init.");
     state = 1000;
+  }
+  if (state == 200) {
+    // restart after config change
+    if (!conf.Load()) {
+      // 
+      conf.Default();
+    }
+    conf.Display();
+    trace("Sys init.");
+    state = 1;
   }
   if (state == 1000) {
     // 
-    if (wait(10000)) return false;
+    if (SELF_TEST 
+      && wait(10000)) return false;
     state = 2000;
   }
   if (state == 2000) {
@@ -724,7 +770,7 @@ bool execute() {
   }
   if (state == 10) {
     // self-test: empty tank LED on
-    trace("Test: Start");
+    trace("Test: Begin");
     trace("Test: LED");
     digitalWrite(SIGNALING_LED_PORT, HIGH);
     state = 1010;
@@ -794,7 +840,7 @@ bool execute() {
         state = 16;
       } else {
         // 
-        trace("Test: Stop");
+        trace("Test: End");
         digitalWrite(SIGNALING_LED_PORT, HIGH);
         state = 1016;
       }
